@@ -9,9 +9,62 @@
     <script>
         $(document).ready(() => {
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl("https://localhost:44316/myhub").build();
+                .withUrl("https://localhost:44316/myhub")
+                .withAutomaticReconnect([1000, 1000, 3000, 5000, 10000]) // 1,1,3,5,10 saniyelik periyodlar ile deneme yapmak
+                .build();
 
-            connection.start();
+            // Bağlantı hiç kurulmadığı durumlarda bu metot kullanılır.
+            async function start() {
+                try {
+                    await connection.start();
+                }
+                catch (error) {
+                    setTimeout(() => start(), 2000);
+                }
+            }
+
+            // connection start
+            start();
+
+
+
+            const durum = $("#durum")
+
+            // Bağlantı kuruldu ardından tekrardan bağlanmaya çalışıyorsa bu metot gösterilecek
+            connection.onreconnecting(error => {
+                durum.css("background-color", "blue");
+                durum.css("color", "white");
+                durum.html("Bağlantı kuruluyor...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
+
+            // Yeniden bağlantı kurulduktan sonra bu metot gösterilir
+            connection.onreconnected(connectionId => {
+                durum.css("background-color", "green");
+                durum.css("color", "white");
+                durum.html("Bağlantı kuruldu...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
+
+            // Yeniden bağlantı kurulamadığında gösterilecek metot
+            connection.onclose(connectionId => {
+                durum.css("background-color", "red");
+                durum.css("color", "white");
+                durum.html("Bağlantı kurulamadı...");
+                durum.fadeIn(2000, () => {
+                    setTimeout(() => {
+                        durum.fadeOut(2000);
+                    }, 2000)
+                });
+            });
 
             $("#btnGonder").click(() => {
                 let message = $("#txtMessage").val();
@@ -20,8 +73,10 @@
             });
 
             connection.on("receiveMessage", message => {
-                $("div").append(message + "<br>");
+                $("#mesajlar").append(message + "<br>");
             })
+
+
 
         });
     </script>
@@ -29,10 +84,12 @@
 
 <body>
 
+    <div id="durum" style="display: none;"></div>
+
     <input type="text" id="txtMessage">
     <button id="btnGonder">Gönder</button>
 
-    <div></div>
+    <div id="mesajlar"></div>
 
 </body>
 
