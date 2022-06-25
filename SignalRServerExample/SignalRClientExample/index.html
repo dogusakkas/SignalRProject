@@ -9,7 +9,7 @@
     <script>
         $(document).ready(() => {
             const connection = new signalR.HubConnectionBuilder()
-                .withUrl("https://localhost:44316/myhub")
+                .withUrl("https://localhost:44316/messagehub")
                 .withAutomaticReconnect([1000, 1000, 3000, 5000, 10000]) // 1,1,3,5,10 saniyelik periyodlar ile deneme yapmak
                 .build();
 
@@ -64,35 +64,50 @@
 
             connection.on("userJoined", connectionId => {
                 durum.html(`${connectionId} bağlandı.`);
-                durum.css("background-color","green");
+                durum.css("background-color", "green");
                 animation();
             });
 
             connection.on("userLeft", connectionId => {
                 durum.html(`${connectionId} ayrıldı.`);
-                durum.css("background-color","red");
+                durum.css("background-color", "red");
                 animation();
             });
 
             connection.on("clients", clientsData => {
                 let text = "";
-                $.each(clientsData, (index,item) => {
+                $.each(clientsData, (index, item) => {
                     text += `<li>${item}</li>`;
-                    
+
                 });
                 $("#clients").html(text);
             })
 
             $("#btnGonder").click(() => {
-                let message = $("#txtMessage").val();
 
-                connection.invoke("SendMessageAsync", message).catch(error => console.log(`Mesaj gönderilirken hata oluştu. ${error}`));
+                let message = $("#txtMessage").val();
+                let connectionIds = $("#connectionIds").val().split(",");
+                let groups = $("#txtGroups").val().split(",");
+
+                // connection.invoke("SendMessageAsync", message, connectionIds).catch(error => console.log(`Mesaj gönderilirken hata oluştu. ${error}`));
+
+                connection.invoke("SendMessageAsync", message, groups[0]).catch(error => console.log(`Mesaj gönderilirken hata oluştu. ${error}`));
             });
 
             connection.on("receiveMessage", message => {
                 $("#mesajlar").append(message + "<br>");
             })
 
+            let _connectionId = "";
+            connection.on("getConnectionId", connectionId => {
+                _connectionId = connectionId;
+                $("#connectionId").html(`Connection Id : ${connectionId}`);
+            })
+
+            $("#btnGrubaGir").click(() =>{
+                let groupName =  $("input[name=grup]:checked").val();
+                connection.invoke("addGroup", _connectionId, groupName).catch(error => console.log(` Mesaj gönderilirken hata oluştu ${error}`));
+            });
 
 
         });
@@ -101,9 +116,22 @@
 
 <body>
 
+    <div style="background-color: black; color:white;" id="connectionId"></div>
+
+    <input type="radio" name="grup" value="A"> Genç Kızlar
+    <input type="radio" name="grup" value="B"> Çılgın Grup
+    <input type="radio" name="grup" value="C"> Dostlar
+    <button id="btnGrubaGir">Gruba Gir</button>
+    <br>
+
     <div id="durum" style="display: none;"></div>
 
-    <input type="text" id="txtMessage">
+    <input type="text" id="txtMessage" placeholder="Mesajınız">
+    <input type="text" id="txtGroups" placeholder="Groups">
+    <br>
+
+    <textarea id="connectionIds" cols="30" rows="10" placeholder="Connection ID"></textarea>
+    
     <button id="btnGonder">Gönder</button>
 
     <div id="mesajlar"></div>
